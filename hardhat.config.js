@@ -20,7 +20,12 @@ module.exports = {
    */
   defaultNetwork: 'matic',
   networks: {
-    hardhat: {},
+    hardhat: {
+      forking: {
+        url: `https://eth-mainnet.alchemyapi.io/v2/${process.env.ALCHEMY_KEY}`,
+        blockNumber: 12530913,
+      },
+    },
     matic: {
       url: 'https://rpc-mumbai.maticvigil.com',
       accounts: [PRIVATE_KEY],

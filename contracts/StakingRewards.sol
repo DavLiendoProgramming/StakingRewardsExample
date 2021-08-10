@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 pragma solidity ^0.8;
 
 import "@openzeppelin/contracts/utils/math/Math.sol";
@@ -21,7 +23,7 @@ contract StakingRewards is IStakingRewards, RewardsDistributionRecipient, Reentr
     IERC20 public rewardsToken;
     uint256 public periodFinish = 0;
     uint256 public rewardRate = 0;
-    uint256 public rewardsDuration = 7 days;
+    uint256 public rewardsDuration = 15 minutes;
     uint256 public lastUpdateTime;
     uint256 public rewardPerTokenStored;
 
@@ -78,14 +80,20 @@ contract StakingRewards is IStakingRewards, RewardsDistributionRecipient, Reentr
 
     /* ========== MUTATIVE FUNCTIONS ========== */
 
+    /**
+     * For transfering the token to be staked into the contract
+     */
     function stake(uint256 amount) external override  nonReentrant notPaused updateReward(msg.sender) {
         require(amount > 0, "Cannot stake 0");
         _totalSupply = _totalSupply.add(amount);
         _balances[msg.sender] = _balances[msg.sender].add(amount);
         stakingToken.safeTransferFrom(msg.sender, address(this), amount);
         emit Staked(msg.sender, amount);
-    }
+    }   
 
+    /**
+     * For withdrawing a certain amount of the staked token
+     */
     function withdraw(uint256 amount) public override nonReentrant updateReward(msg.sender) {
         require(amount > 0, "Cannot withdraw 0");
         _totalSupply = _totalSupply.sub(amount);
@@ -94,6 +102,9 @@ contract StakingRewards is IStakingRewards, RewardsDistributionRecipient, Reentr
         emit Withdrawn(msg.sender, amount);
     }
 
+    /**
+     * Transferring all the rewards as the reward token to the user
+     */
     function getReward() public override nonReentrant updateReward(msg.sender) {
         uint256 reward = rewards[msg.sender];
         if (reward > 0) {
@@ -103,6 +114,9 @@ contract StakingRewards is IStakingRewards, RewardsDistributionRecipient, Reentr
         }
     }
 
+    /**
+     * Withdraws the whole balance of staked token inside the contract
+     */
     function exit() external override {
         withdraw(_balances[msg.sender]);
         getReward();
@@ -111,6 +125,10 @@ contract StakingRewards is IStakingRewards, RewardsDistributionRecipient, Reentr
     /* ========== RESTRICTED FUNCTIONS ========== */
 
     function notifyRewardAmount(uint256 reward) override external onlyRewardsDistribution updateReward(address(0)) {
+
+        /**
+        * End of period
+         */
         if (block.timestamp >= periodFinish) {
             rewardRate = reward.div(rewardsDuration);
         } else {
@@ -137,12 +155,18 @@ contract StakingRewards is IStakingRewards, RewardsDistributionRecipient, Reentr
     }
 
     // Added to support recovering LP Rewards from other systems such as BAL to be distributed to holders
+    /**
+     Read more -------------
+     */
     function recoverERC20(address tokenAddress, uint256 tokenAmount) external onlyOwner {
         require(tokenAddress != address(stakingToken), "Cannot withdraw the staking token");
         IERC20(tokenAddress).safeTransfer(owner, tokenAmount);
         emit Recovered(tokenAddress, tokenAmount);
     }
 
+    /** 
+    * Setter for the reward duration
+    */
     function setRewardsDuration(uint256 _rewardsDuration) external onlyOwner {
         require(
             block.timestamp > periodFinish,
