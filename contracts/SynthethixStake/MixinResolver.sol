@@ -34,7 +34,7 @@ contract MixinResolver {
     /* ========== PUBLIC FUNCTIONS ========== */
 
     // Note: this function is public not external in order for it to be overridden and invoked via super in subclasses
-    function resolverAddressesRequired() public view returns (bytes32[] memory addresses) {}
+    function resolverAddressesRequired() public virtual view returns (bytes32[] memory addresses) {}
 
     function rebuildCache() public {
         bytes32[] memory requiredAddresses = resolverAddressesRequired();

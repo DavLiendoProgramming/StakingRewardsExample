@@ -7,7 +7,7 @@ import "./Owned.sol";
 import "./Proxy.sol";
 
 // https://docs.synthetix.io/contracts/source/contracts/proxyable
-contract Proxyable is Owned {
+abstract contract Proxyable is Owned {
     // This contract should be treated like an abstract contract
 
     /* The proxy this contract exists behind. */

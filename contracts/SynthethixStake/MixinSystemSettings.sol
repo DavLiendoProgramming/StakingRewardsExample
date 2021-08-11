@@ -37,7 +37,7 @@ contract MixinSystemSettings is MixinResolver {
 
     constructor(address _resolver) MixinResolver(_resolver) {}
 
-    function resolverAddressesRequired() public override view returns (bytes32[] memory addresses) {
+    function resolverAddressesRequired() public virtual override view returns (bytes32[] memory addresses) {
         addresses = new bytes32[](1);
         addresses[0] = CONTRACT_FLEXIBLESTORAGE;
     }

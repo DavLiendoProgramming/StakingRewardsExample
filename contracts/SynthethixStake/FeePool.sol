@@ -33,7 +33,7 @@ contract FeePool is Owned, Proxyable, LimitedSetup, MixinSystemSettings, IFeePoo
     using SafeDecimalMath for uint;
 
     // Where fees are pooled in sUSD.
-    address public constant FEE_ADDRESS = 0xfeEFEEfeefEeFeefEEFEEfEeFeefEEFeeFEEFEeF;
+    address override public constant FEE_ADDRESS = 0xfeEFEEfeefEeFeefEEFEEfEeFeefEEFeeFEEFEeF;
 
     // sUSD currencyKey. Fees stored and paid in sUSD
     bytes32 private sUSD = "sUSD";
@@ -85,11 +85,11 @@ contract FeePool is Owned, Proxyable, LimitedSetup, MixinSystemSettings, IFeePoo
     ) public Owned(_owner) Proxyable(_proxy) LimitedSetup(3 weeks) MixinSystemSettings(_resolver) {
         // Set our initial fee period
         _recentFeePeriodsStorage(0).feePeriodId = 1;
-        _recentFeePeriodsStorage(0).startTime = uint64(now);
+        _recentFeePeriodsStorage(0).startTime = uint64(block.timestamp);
     }
 
     /* ========== VIEWS ========== */
-    function resolverAddressesRequired() public view returns (bytes32[] memory addresses) {
+    function resolverAddressesRequired() public override view returns (bytes32[] memory addresses) {
         bytes32[] memory existingAddresses = MixinSystemSettings.resolverAddressesRequired();
         bytes32[] memory newAddresses = new bytes32[](12);
         newAddresses[0] = CONTRACT_SYSTEMSTATUS;
@@ -159,11 +159,11 @@ contract FeePool is Owned, Proxyable, LimitedSetup, MixinSystemSettings, IFeePoo
         return getIssuanceRatio();
     }
 
-    function feePeriodDuration() external view returns (uint) {
+    function feePeriodDuration() external override view returns (uint) {
         return getFeePeriodDuration();
     }
 
-    function targetThreshold() external view returns (uint) {
+    function targetThreshold() external override view returns (uint) {
         return getTargetThreshold();
     }
 
@@ -204,13 +204,13 @@ contract FeePool is Owned, Proxyable, LimitedSetup, MixinSystemSettings, IFeePoo
      * @param debtRatio Debt percentage this account has locked after minting or burning their synth
      * @param debtEntryIndex The index in the global debt ledger. synthetixState.issuanceData(account)
      * @dev onlyIssuer to call me on synthetix.issue() & synthetix.burn() calls to store the locked SNX
-     * per fee period so we know to allocate the correct proportions of fees and rewards per period
+     * per fee period so we block.timestamp to allocate the correct proportions of fees and rewards per period
      */
     function appendAccountIssuanceRecord(
         address account,
         uint debtRatio,
         uint debtEntryIndex
-    ) external onlyIssuerAndSynthetixState {
+    ) external override onlyIssuerAndSynthetixState {
         feePoolState().appendAccountIssuanceRecord(
             account,
             debtRatio,
@@ -225,7 +225,7 @@ contract FeePool is Owned, Proxyable, LimitedSetup, MixinSystemSettings, IFeePoo
      * @notice The Exchanger contract informs us when fees are paid.
      * @param amount susd amount in fees being paid.
      */
-    function recordFeePaid(uint amount) external onlyInternalContracts {
+    function recordFeePaid(uint amount) external override onlyInternalContracts {
         // Keep track off fees in sUSD in the open fee pool period.
         _recentFeePeriodsStorage(0).feesToDistribute = _recentFeePeriodsStorage(0).feesToDistribute.add(amount);
     }
@@ -233,7 +233,7 @@ contract FeePool is Owned, Proxyable, LimitedSetup, MixinSystemSettings, IFeePoo
     /**
      * @notice The RewardsDistribution contract informs us how many SNX rewards are sent to RewardEscrow to be claimed.
      */
-    function setRewardsToDistribute(uint amount) external {
+    function setRewardsToDistribute(uint amount) external override {
         address rewardsAuthority = address(rewardsDistribution());
         require(messageSender == rewardsAuthority || msg.sender == rewardsAuthority, "Caller is not rewardsAuthority");
         // Add the amount of SNX rewards to distribute on top of any rolling unclaimed amount
@@ -243,9 +243,9 @@ contract FeePool is Owned, Proxyable, LimitedSetup, MixinSystemSettings, IFeePoo
     /**
      * @notice Close the current fee period and start a new one.
      */
-    function closeCurrentFeePeriod() external issuanceActive {
+    function closeCurrentFeePeriod() external override issuanceActive {
         require(getFeePeriodDuration() > 0, "Fee Period Duration not set");
-        require(_recentFeePeriodsStorage(0).startTime <= (now - getFeePeriodDuration()), "Too early to close fee period");
+        require(_recentFeePeriodsStorage(0).startTime <= (block.timestamp - getFeePeriodDuration()), "Too early to close fee period");
 
         etherWrapper().distributeFees();
 
@@ -277,7 +277,7 @@ contract FeePool is Owned, Proxyable, LimitedSetup, MixinSystemSettings, IFeePoo
         // Increment periodId from the recent closed period feePeriodId
         _recentFeePeriodsStorage(0).feePeriodId = uint64(uint256(_recentFeePeriodsStorage(1).feePeriodId).add(1));
         _recentFeePeriodsStorage(0).startingDebtIndex = uint64(synthetixState().debtLedgerLength());
-        _recentFeePeriodsStorage(0).startTime = uint64(now);
+        _recentFeePeriodsStorage(0).startTime = uint64(block.timestamp);
 
         emitFeePeriodClosed(_recentFeePeriodsStorage(1).feePeriodId);
     }
@@ -285,7 +285,7 @@ contract FeePool is Owned, Proxyable, LimitedSetup, MixinSystemSettings, IFeePoo
     /**
      * @notice Claim fees for last period when available or not already withdrawn.
      */
-    function claimFees() external issuanceActive optionalProxy returns (bool) {
+    function claimFees() external override issuanceActive optionalProxy returns (bool) {
         return _claimFees(messageSender);
     }
 
@@ -295,7 +295,7 @@ contract FeePool is Owned, Proxyable, LimitedSetup, MixinSystemSettings, IFeePoo
      * approveClaimOnBehalf() must be called first to approve the deletage address
      * @param claimingForAddress The account you are claiming fees for
      */
-    function claimOnBehalf(address claimingForAddress) external issuanceActive optionalProxy returns (bool) {
+    function claimOnBehalf(address claimingForAddress) external override issuanceActive optionalProxy returns (bool) {
         require(delegateApprovals().canClaimFor(claimingForAddress, messageSender), "Not approved to claim on behalf");
 
         return _claimFees(claimingForAddress);
@@ -487,7 +487,7 @@ contract FeePool is Owned, Proxyable, LimitedSetup, MixinSystemSettings, IFeePoo
     /**
      * @notice The total fees available in the system to be withdrawnn in sUSD
      */
-    function totalFeesAvailable() external view returns (uint) {
+    function totalFeesAvailable() external override view returns (uint) {
         uint totalFees = 0;
 
         // Fees in fee period [0] are not yet available for withdrawal
@@ -502,7 +502,7 @@ contract FeePool is Owned, Proxyable, LimitedSetup, MixinSystemSettings, IFeePoo
     /**
      * @notice The total SNX rewards available in the system to be withdrawn
      */
-    function totalRewardsAvailable() external view returns (uint) {
+    function totalRewardsAvailable() external override view returns (uint) {
         uint totalRewards = 0;
 
         // Rewards in fee period [0] are not yet available for withdrawal
@@ -518,7 +518,7 @@ contract FeePool is Owned, Proxyable, LimitedSetup, MixinSystemSettings, IFeePoo
      * @notice The fees available to be withdrawn by a specific account, priced in sUSD
      * @dev Returns two amounts, one for fees and one for SNX rewards
      */
-    function feesAvailable(address account) public view returns (uint, uint) {
+    function feesAvailable(address account) public override view returns (uint, uint) {
         // Add up the fees
         uint[2][FEE_PERIOD_LENGTH] memory userFees = feesByPeriod(account);
 
@@ -559,7 +559,7 @@ contract FeePool is Owned, Proxyable, LimitedSetup, MixinSystemSettings, IFeePoo
         return (true, anyRateIsInvalid);
     }
 
-    function isFeesClaimable(address account) external view returns (bool feesClaimable) {
+    function isFeesClaimable(address account) external override view returns (bool feesClaimable) {
         (feesClaimable, ) = _isFeesClaimableAndAnyRatesInvalid(account);
     }
 

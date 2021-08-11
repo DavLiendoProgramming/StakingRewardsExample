@@ -54,24 +54,24 @@ contract Proxy is Owned {
     }
 
     // solhint-disable no-complex-fallback
-    function() external payable {
-        // Mutable call setting Proxyable.messageSender as this is using call not delegatecall
-        target.setMessageSender(msg.sender);
+    // function() external payable {
+    //     // Mutable call setting Proxyable.messageSender as this is using call not delegatecall
+    //     target.setMessageSender(msg.sender);
 
-        assembly {
-            let free_ptr := mload(0x40)
-            calldatacopy(free_ptr, 0, calldatasize)
+    //     assembly {
+    //         let free_ptr := mload(0x40)
+    //         calldatacopy(free_ptr, 0, calldatasize)
 
-            /* We must explicitly forward ether to the underlying contract as well. */
-            let result := call(gas, sload(target_slot), callvalue, free_ptr, calldatasize, 0, 0)
-            returndatacopy(free_ptr, 0, returndatasize)
+    //         /* We must explicitly forward ether to the underlying contract as well. */
+    //         let result := call(gas, sload(target_slot), callvalue, free_ptr, calldatasize, 0, 0)
+    //         returndatacopy(free_ptr, 0, returndatasize)
 
-            if iszero(result) {
-                revert(free_ptr, returndatasize)
-            }
-            return(free_ptr, returndatasize)
-        }
-    }
+    //         if iszero(result) {
+    //             revert(free_ptr, returndatasize)
+    //         }
+    //         return(free_ptr, returndatasize)
+    //     }
+    // }
 
     modifier onlyTarget {
         require(Proxyable(msg.sender) == target, "Must be proxy target");
