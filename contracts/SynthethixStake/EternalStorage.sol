@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 pragma solidity ^0.8;
 
 // Inheritance
@@ -13,7 +15,7 @@ import "./State.sol";
  * requiring upgrades to the storage contract.
  */
 contract EternalStorage is Owned, State {
-    constructor(address _owner, address _associatedContract) public Owned(_owner) State(_associatedContract) {}
+    constructor(address _owner, address _associatedContract)  Owned(_owner) State(_associatedContract) {}
 
     /* ========== DATA TYPES ========== */
     mapping(bytes32 => uint) internal UIntStorage;

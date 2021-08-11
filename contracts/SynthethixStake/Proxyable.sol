@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 pragma solidity ^0.8;
 
 // Inheritance
@@ -19,7 +21,7 @@ abstract contract Proxyable is Owned {
      * optionalProxy modifiers, otherwise their invocations can use stale values. */
     address public messageSender;
 
-    constructor(address payable _proxy) internal {
+    constructor(address payable _proxy)  {
         // This contract is abstract, and thus cannot be instantiated directly
         require(owner != address(0), "Owner must be set");
 

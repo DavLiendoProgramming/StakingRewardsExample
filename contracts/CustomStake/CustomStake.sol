@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 pragma solidity ^0.8;
 
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
@@ -123,6 +125,7 @@ contract CustomStake is Ownable {
    {
        if(stakes[msg.sender] == 0) addStakeholder(msg.sender);
        stakes[msg.sender] = stakes[msg.sender].add(_stake);
+
        /**
         * Transferring token
         */
@@ -138,7 +141,11 @@ contract CustomStake is Ownable {
    {
        stakes[msg.sender] = stakes[msg.sender].sub(_stake);
        if(stakes[msg.sender] == 0) removeStakeholder(msg.sender);
-    //    _mint(msg.sender, _stake);
+       
+       /**
+        * Transferring token
+        */
+        stakingToken.transferFrom(address(this), msg.sender, _stake);
    }
 
    /**
@@ -208,6 +215,6 @@ contract CustomStake is Ownable {
    {
        uint256 reward = rewards[msg.sender];
        rewards[msg.sender] = 0;
-    //    _mint(msg.sender, reward);
+       rewardsToken.transferFrom(address(this), msg.sender, reward); 
    }
 }

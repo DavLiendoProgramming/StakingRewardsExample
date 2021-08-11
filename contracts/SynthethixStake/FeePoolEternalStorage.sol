@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 pragma solidity ^0.8;
 
 // Inheritance
@@ -8,7 +10,7 @@ import "./LimitedSetup.sol";
 contract FeePoolEternalStorage is EternalStorage, LimitedSetup {
     bytes32 internal constant LAST_FEE_WITHDRAWAL = "last_fee_withdrawal";
 
-    constructor(address _owner, address _feePool) public EternalStorage(_owner, _feePool) LimitedSetup(6 weeks) {}
+    constructor(address _owner, address _feePool) EternalStorage(_owner, _feePool) LimitedSetup(6 weeks) {}
 
     function importFeeWithdrawalData(address[] calldata accounts, uint[] calldata feePeriodIDs)
         external

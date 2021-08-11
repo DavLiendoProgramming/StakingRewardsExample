@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 pragma solidity ^0.8;
 
 // Inheritance
@@ -12,7 +14,7 @@ import "./MixinResolver.sol";
 contract AddressResolver is Owned, IAddressResolver {
     mapping(bytes32 => address) public repository;
 
-    constructor(address _owner) public Owned(_owner) {}
+    constructor(address _owner) Owned(_owner) {}
 
     /* ========== RESTRICTED FUNCTIONS ========== */
 

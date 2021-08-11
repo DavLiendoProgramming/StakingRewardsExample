@@ -42,9 +42,9 @@ describe('Deploying ERC20 contracts and testing functionalities', () => {
   });
 
   it('Returns the starting balance of the owner, test user and contract', async () => {
-    //Transferring token for staking to the user
-    await stakeERC20.transfer(account2.address, 100);
-    await rewardERC20.transfer(stakeContract.address, 250);
+    //Transferring token for staking to the user and giving rewards tokens for use inside the staking contract
+    await stakeERC20.transfer(account2.address, 10000);
+    await rewardERC20.transfer(stakeContract.address, 25000);
 
     //Getting the balances of every contract
     const ownerStakeBal = (
@@ -91,10 +91,10 @@ describe('Deploying ERC20 contracts and testing functionalities', () => {
 
   it('Make a deposit for staking from the user to the staker contract', async () => {
     //Allowing contract to spend our token for staking
-    await stakeERC20.connect(account2).approve(stakeContract.address, 30);
+    await stakeERC20.connect(account2).approve(stakeContract.address, 10000);
 
     //Staking Token inside the contract
-    await stakeContract.connect(account2).createStake(20);
+    await stakeContract.connect(account2).createStake(5000);
 
     /**
      * Getting Balances after depositing
@@ -128,6 +128,59 @@ describe('Deploying ERC20 contracts and testing functionalities', () => {
     );
 
     //Asserting the balance of the stake
-    assert(parseInt(stakerContractStakeBal) === 20);
+    assert(parseInt(stakerContractStakeBal) === 5000);
+  });
+
+  it('Collects the rewards of a particular user after certain amount of time', async () => {
+    const startingRewardsBal = (
+      await stakeContract.calculateReward(account2.address)
+    ).toString();
+    console.log(
+      '\nStarting rewards balance inside the contract:',
+      startingRewardsBal
+    );
+
+    /**
+     * Distributing rewards to the staker (Callable only by the owner of the contract)
+     */
+    await stakeContract.distributeRewards();
+
+    //Allowing contract to spend our token for staking
+    // await rewardERC20.connect(account2).approve(stakeContract.address, 10000);
+    /**
+     * Withdrawing all the rewards available
+     */
+    await stakeContract.connect(account2).withdrawReward();
+
+    /**
+     * Getting Balances after withdrawing
+     */
+    const userStakeBal = (
+      await stakeERC20.balanceOf(account2.address)
+    ).toString();
+    const userRewardsBal = (
+      await rewardERC20.balanceOf(account2.address)
+    ).toString();
+    const stakerContractStakeBal = (
+      await stakeERC20.balanceOf(stakeContract.address)
+    ).toString();
+    const stakerContractRewardsBal = (
+      await rewardERC20.balanceOf(stakeContract.address)
+    ).toString();
+
+    console.log(
+      "\nUser's account balance just after withdrawing",
+      '\nStake Balance:',
+      userStakeBal,
+      '\nRewards Balance:',
+      userRewardsBal
+    );
+    console.log(
+      "\nStaker contract's account just after withdrawing",
+      '\nStake Balance:',
+      stakerContractStakeBal,
+      '\nRewards Balance:',
+      stakerContractRewardsBal
+    );
   });
 });
