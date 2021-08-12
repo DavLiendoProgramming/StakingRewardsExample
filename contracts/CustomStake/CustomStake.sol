@@ -122,7 +122,11 @@ contract CustomStake is Ownable {
     */
    function createStake(uint256 _stake)
        public
-   {
+   {   
+        require(_stake > 0, "You need to stake more than 0");
+       /**
+        * Register Stake holder
+        */
        if(stakes[msg.sender] == 0) addStakeholder(msg.sender);
        stakes[msg.sender] = stakes[msg.sender].add(_stake);
 
@@ -130,6 +134,7 @@ contract CustomStake is Ownable {
         * Transferring token
         */
         stakingToken.transferFrom(msg.sender, address(this), _stake);
+        emit Staked(msg.sender, _stake);
    }
 
    /**
@@ -138,14 +143,15 @@ contract CustomStake is Ownable {
     */
    function removeStake(uint256 _stake)
        public
-   {
+   {   
+       require(_stake > 0, "You need to remove more than 0");
        stakes[msg.sender] = stakes[msg.sender].sub(_stake);
        if(stakes[msg.sender] == 0) removeStakeholder(msg.sender);
        
        /**
         * Transferring token
         */
-        stakingToken.transferFrom(address(this), msg.sender, _stake);
+        stakingToken.transfer(msg.sender, _stake);
    }
 
    /**
@@ -203,6 +209,7 @@ contract CustomStake is Ownable {
        for (uint256 s = 0; s < stakeHolders.length; s += 1){
            address stakeholder = stakeHolders[s];
            uint256 reward = calculateReward(stakeholder);
+           emit RewardDistributed(stakeholder, reward);
            rewards[stakeholder] = rewards[stakeholder].add(reward);
        }
    }
@@ -212,9 +219,19 @@ contract CustomStake is Ownable {
     */
    function withdrawReward()
        public
-   {
+   {   
+       require(rewards[msg.sender] > 0, "No reward created yet");
        uint256 reward = rewards[msg.sender];
        rewards[msg.sender] = 0;
-       rewardsToken.transferFrom(address(this), msg.sender, reward); 
-   }
+       rewardsToken.transfer(msg.sender, reward); 
+
+       //remove stakeholder from the array
+       removeStakeholder(msg.sender);
+       emit Withdrawn(msg.sender, reward);
+   } 
+
+    /* ========== EVENTS ========== */
+    event Staked(address indexed user, uint256 amount);
+    event RewardDistributed(address indexed user, uint256 amount);  
+    event Withdrawn(address indexed user, uint256 amount);
 }
