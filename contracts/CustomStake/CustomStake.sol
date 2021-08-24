@@ -22,11 +22,31 @@ contract CustomStake is Ownable {
 
     IERC20 public stakingToken;
     IERC20 public rewardsToken;
+    // Registering stakeholders for security reasons
     address[] internal stakeHolders;
     mapping(address => uint256) internal stakes;
     mapping(address => uint256) internal rewards;
 
+    // 0: Bronze,1: Silver,2: Gold,3: Platinum,
+    enum StakeTier {
+        Bronze,Silver,Gold,Platinum
+    }
 
+    struct UserRewards {
+        uint accumulated;                            
+        uint checkpoint;
+    }
+    
+    struct StakeStruct { 
+        uint stake;
+        address stakerAddress;
+        uint startDate;
+        UserRewards reward;
+        StakeTier tier;
+    }
+
+
+    mapping(address => StakeStruct) internal stakesMap;
    /**
     * @notice The constructor for the Staking Contract.
     */
@@ -39,8 +59,67 @@ contract CustomStake is Ownable {
        stakingToken = IERC20(_stakingToken);
        rewardsToken = IERC20(_rewardsToken);
    }
+    /**
+    * ================ Utility Functions ================
+    */
 
-    
+    /**
+    * @notice A method for setting the tier
+    * @param _stake the amount to stake
+    */
+    function setTier(uint _stake) internal pure returns(StakeTier) {
+        if(_stake >= 1000){
+            return StakeTier.Platinum;
+        } else if (_stake >= 500 && _stake  < 1000) {
+            return StakeTier.Gold;
+        } else if (_stake >= 100 && _stake  < 500) {
+            return StakeTier.Silver;
+        }  else if (_stake > 0  && _stake  < 100) {
+            return StakeTier.Bronze;
+        }
+
+    }
+        
+    /**
+    * @notice A method for getting the tier
+    * @param _staker address of the required user
+    */
+
+    function getTierOf(address _staker) public view returns(StakeTier){
+        return stakesMap[_staker].tier;
+    }
+
+    /**
+    * @dev Update the rewards per token accumulator.
+    * @notice Needs to be called on each liquidity event
+    * Tiers:
+    * Platinum reward of 100 RewardToken 
+    * Gold reward of 50 RewardToken 
+    * Silver reward of 10 RewardToken
+    * Bronze reward of 5 RewardToken
+    */
+    function _updateRewardsPerToken(StakeStruct storage _staker) internal {
+
+        // Getting amount of periods
+        uint rewardPeriods = (block.timestamp -  _staker.startDate) / (10 minutes);
+
+        // Restarting period
+        _staker.startDate = block.timestamp;
+
+        //Assigning new amount of reward
+        if(_staker.tier == StakeTier.Platinum){
+            _staker.reward.accumulated = _staker.reward.accumulated + rewardPeriods * 100;
+        } else if (_staker.tier == StakeTier.Gold){
+            _staker.reward.accumulated = _staker.reward.accumulated + rewardPeriods * 50;
+
+        } else if (_staker.tier == StakeTier.Silver){
+            _staker.reward.accumulated = _staker.reward.accumulated + rewardPeriods * 10;
+
+        } else if (_staker.tier == StakeTier.Bronze){
+            _staker.reward.accumulated = _staker.reward.accumulated + rewardPeriods * 5;
+
+        }
+    }
    /**
     * ================ Staking Mechanism ================
     */
@@ -87,20 +166,20 @@ contract CustomStake is Ownable {
        }
    }
 
-      /**
+    /**
     * @notice A method to retrieve the stake for a stakeholder.
-    * @param _stakeholder The stakeholder to retrieve the stake for.
+    * @param _stakeHolder The stakeholder to retrieve the stake for.
     * @return uint256 The amount of wei staked.
     */
-   function stakeOf(address _stakeholder)
+   function stakeOf(address _stakeHolder)
        public
        view
        returns(uint256)
    {
-       return stakes[_stakeholder];
+       return stakesMap[_stakeHolder].reward.accumulated;
    }
 
-   /**
+   /**   
     * @notice A method to the aggregated stakes from all stakeholders.
     * @return uint256 The aggregated stakes from all stakeholders.
     */
@@ -109,9 +188,9 @@ contract CustomStake is Ownable {
        view
        returns(uint256)
    {
-       uint256 _totalStakes = 0;
+       uint256 _totalStakes;
        for (uint256 s = 0; s < stakeHolders.length; s += 1){
-           _totalStakes = _totalStakes.add(stakes[stakeHolders[s]]);
+           _totalStakes = _totalStakes.add(stakesMap[stakeHolders[s]].reward.accumulated);
        }
        return _totalStakes;
    }
@@ -127,9 +206,11 @@ contract CustomStake is Ownable {
        /**
         * Register Stake holder
         */
-       if(stakes[msg.sender] == 0) addStakeholder(msg.sender);
-       stakes[msg.sender] = stakes[msg.sender].add(_stake);
-
+        addStakeholder(msg.sender);
+        stakesMap[msg.sender].startDate = block.timestamp;
+        stakesMap[msg.sender].stake.add(_stake);
+        stakesMap[msg.sender].stakerAddress = msg.sender;
+        stakesMap[msg.sender].tier = setTier(_stake);
        /**
         * Transferring token
         */
@@ -168,7 +249,7 @@ contract CustomStake is Ownable {
        view
        returns(uint256)
    {
-       return rewards[_stakeholder];
+       return stakesMap[_stakeholder].reward.accumulated + stakesMap[_stakeholder].reward.checkpoint;
    }
 
    /**
@@ -187,32 +268,7 @@ contract CustomStake is Ownable {
        return _totalRewards;
    }
    
-   /**
-    * @notice A simple method that calculates the rewards for each stakeholder.
-    * @param _stakeholder The stakeholder to calculate rewards for.
-    */
-   function calculateReward(address _stakeholder)
-       public
-       view
-       returns(uint256)
-   {
-       return stakes[_stakeholder] / 100;
-   }
 
-   /**
-    * @notice A method to distribute rewards to all stakeholders.
-    */
-   function distributeRewards()
-       public
-       onlyOwner
-   {
-       for (uint256 s = 0; s < stakeHolders.length; s += 1){
-           address stakeholder = stakeHolders[s];
-           uint256 reward = calculateReward(stakeholder);
-           emit RewardDistributed(stakeholder, reward);
-           rewards[stakeholder] = rewards[stakeholder].add(reward);
-       }
-   }
 
    /**
     * @notice A method to allow a stakeholder to withdraw his rewards.

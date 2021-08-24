@@ -5,6 +5,7 @@ require('dotenv').config();
 require('@nomiclabs/hardhat-waffle');
 require('@nomiclabs/hardhat-truffle5');
 require('@nomiclabs/hardhat-etherscan');
+require('hardhat-gas-reporter');
 
 /**
  * Import private key of the account with funds
@@ -61,12 +62,21 @@ module.exports = {
     artifacts: './artifacts',
   },
   mocha: {
-    timeout: 20000,
+    timeout: 200000,
   },
   /**
    * Using hardhat-etherscan plugin for veryfying introduce key for polygon or eth nets
    */
   etherscan: {
     apiKey: process.env.POLYGON_KEY,
+  },
+  /**
+   * Hardhat gas reporter plugin configuration
+   */
+  gasReporter: {
+    currency: 'USD',
+    gasPrice: 51,
+    enabled: process.env.REPORT_GAS ? true : false,
+    coinmarketcap: process.env.COINMARKET_KEY,
   },
 };
