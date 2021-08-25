@@ -70,7 +70,7 @@ contract FeePoolState is Owned, LimitedSetup {
      * @param account users account
      * @param closingDebtIndex the last periods debt index on close
      */
-    function applicableIssuanceData(address account, uint closingDebtIndex) external view returns (uint, uint) {
+    function applicableIssuanceData(address account, uint closingDebtIndex) external view returns (uint first, uint second) {
         IssuanceData[FEE_PERIOD_LENGTH] memory issuanceData = accountIssuanceLedger[account];
 
         // We want to use the user's debtEntryIndex at when the period closed

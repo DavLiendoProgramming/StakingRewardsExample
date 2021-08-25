@@ -139,16 +139,13 @@ describe('Deploying ERC20 contracts and testing functionalities', () => {
     );
   });
 
-  it('Make a deposit for staking from the users to the staker contract', async () => {
+  it('Makes a deposit for staking from the users to the staker contract', async () => {
     //Allowing contract to spend our token for staking
-    // safeApprove should only be called when setting an initial allowance,
-    // or when resetting it to zero. To increase and decrease it, use
-    // 'safeIncreaseAllowance' and 'safeDecreaseAllowance'
 
     await stakeERC20.connect(account2).approve(stakeContract.address, 1000);
-    await stakeERC20.connect(account3).approve(stakeContract.address, 1000);
-    await stakeERC20.connect(account4).approve(stakeContract.address, 1000);
-    await stakeERC20.connect(account5).approve(stakeContract.address, 1000);
+    await stakeERC20.connect(account3).approve(stakeContract.address, 500);
+    await stakeERC20.connect(account4).approve(stakeContract.address, 100);
+    await stakeERC20.connect(account5).approve(stakeContract.address, 100);
 
     //Staking Token inside the contract
     //Platinum Tier
@@ -237,7 +234,7 @@ describe('Deploying ERC20 contracts and testing functionalities', () => {
     assert(parseInt(stakerContractStakeBal) === 1699);
   });
 
-  it('Collects the rewards of a particular user after certain amount of time', async () => {
+  it('Collects the rewards of users at different tiers after certain amount of time', async () => {
     //Increasing current time for 1 hour into the future
     await network.provider.send('evm_increaseTime', [3600]);
 
@@ -262,6 +259,186 @@ describe('Deploying ERC20 contracts and testing functionalities', () => {
     console.log(
       '\nBalance of reward token for account5 of tier bronze: ',
       (await rewardERC20.balanceOf(account5.address)).toString()
+    );
+  });
+
+  it('Deposits at multitple times and collects the rewards', async () => {
+    await stakeERC20.connect(account2).approve(stakeContract.address, 2000);
+    await stakeERC20.connect(account3).approve(stakeContract.address, 1000);
+    await stakeERC20.connect(account4).approve(stakeContract.address, 1000);
+    await stakeERC20.connect(account5).approve(stakeContract.address, 1000);
+
+    //Staking Token inside the contract
+    //Platinum Tier
+    console.log('\nDepositing stakes: ');
+    await stakeContract.connect(account2).createStake(1000);
+    //Gold Tier
+    await stakeContract.connect(account3).createStake(500);
+    //Silver Tier
+    await stakeContract.connect(account4).createStake(100);
+    //Bronze Tier
+    await stakeContract.connect(account5).createStake(50);
+
+    /**
+     * Getting Balances and tier  just after  depositing
+     */
+    const userStakeBal = (
+      await stakeERC20.balanceOf(account2.address)
+    ).toString();
+    const userRewardsBal = (
+      await rewardERC20.balanceOf(account2.address)
+    ).toString();
+    const userTier = await stakeContract.getTierOf(account2.address);
+    const userStakeBal3 = (
+      await stakeERC20.balanceOf(account3.address)
+    ).toString();
+    const userRewardsBal3 = (
+      await rewardERC20.balanceOf(account3.address)
+    ).toString();
+    const userTier3 = await stakeContract.getTierOf(account3.address);
+    const userStakeBal4 = (
+      await stakeERC20.balanceOf(account4.address)
+    ).toString();
+    const userRewardsBal4 = (
+      await rewardERC20.balanceOf(account4.address)
+    ).toString();
+    const userTier4 = await stakeContract.getTierOf(account4.address);
+    const userStakeBal5 = (
+      await stakeERC20.balanceOf(account5.address)
+    ).toString();
+    const userRewardsBal5 = (
+      await rewardERC20.balanceOf(account5.address)
+    ).toString();
+    const userTier5 = await stakeContract.getTierOf(account5.address);
+    const stakerContractStakeBal = (
+      await stakeERC20.balanceOf(stakeContract.address)
+    ).toString();
+    const stakerContractRewardsBal = (
+      await rewardERC20.balanceOf(stakeContract.address)
+    ).toString();
+
+    console.log(
+      '\nUsers account balance just after staking: ',
+      '\nUser 2 Stake Balance: ',
+      userStakeBal,
+      '\nUser 2 Rewards Balance: ',
+      userRewardsBal,
+      '\nUser 2 Rewards Tier: ',
+      userTier,
+      '\nUser 3 Stake Balance: ',
+      userStakeBal3,
+      '\nUser 3 Rewards Balance: ',
+      userRewardsBal3,
+      '\nUser 3 Rewards Tier: ',
+      userTier3,
+      '\nUser 4 Stake Balance: ',
+      userStakeBal4,
+      '\nUser 4 Rewards Balance: ',
+      userRewardsBal4,
+      '\nUser 4 Rewards Tier: ',
+      userTier4,
+      '\nUser 5 Stake Balance: ',
+      userStakeBal5,
+      '\nUser 5 Rewards Balance: ',
+      userRewardsBal5,
+      '\nUser 5 Rewards Tier: ',
+      userTier5
+    );
+    console.log(
+      "\nStaker contract's account just after staking",
+      '\nStake Balance:',
+      stakerContractStakeBal,
+      '\nRewards Balance:',
+      stakerContractRewardsBal
+    );
+
+    //Increasing current time for 1 hour into the future
+    await network.provider.send('evm_increaseTime', [3600]);
+    //Staking Token inside the contract
+    //Platinum Tier
+    await stakeContract.connect(account2).createStake(1000);
+    //Gold Tier
+    await stakeContract.connect(account3).createStake(500);
+    //Silver Tier
+    await stakeContract.connect(account4).createStake(100);
+    //Bronze Tier
+    await stakeContract.connect(account5).createStake(50);
+
+    //Increasing current time for 2 hour into the future
+    await network.provider.send('evm_increaseTime', [7200]);
+
+    //Withdrawoin rewards
+    await stakeContract.connect(account2).withdrawReward();
+    await stakeContract.connect(account3).withdrawReward();
+    await stakeContract.connect(account4).withdrawReward();
+    await stakeContract.connect(account5).withdrawReward();
+
+    console.log(
+      '\nBalance of reward token for account2 after multiple deposits: ',
+      (await rewardERC20.balanceOf(account2.address)).toString()
+    );
+    console.log(
+      '\nBalance of reward token for account3 after multiple deposits: ',
+      (await rewardERC20.balanceOf(account3.address)).toString()
+    );
+    console.log(
+      '\nBalance of reward token for account4 after multiple deposits: ',
+      (await rewardERC20.balanceOf(account4.address)).toString()
+    );
+    console.log(
+      '\nBalance of reward token for account5 after multiple deposits: ',
+      (await rewardERC20.balanceOf(account5.address)).toString()
+    );
+  });
+
+  it('Withdraws stakes and updates tier', async () => {
+    console.log('\nStake balances inside staking contract before removing: ');
+
+    console.log(
+      '\n User2 starting stake balance & tier: ',
+      (await stakeContract.stakeOf(account2.address)).toString(),
+      await stakeContract.getTierOf(account2.address)
+    );
+    console.log(
+      '\n User3 starting stake balance & tier: ',
+      (await stakeContract.stakeOf(account3.address)).toString(),
+      await stakeContract.getTierOf(account3.address)
+    );
+    console.log(
+      '\n User4 starting stake balance & tier: ',
+      (await stakeContract.stakeOf(account4.address)).toString(),
+      await stakeContract.getTierOf(account4.address)
+    );
+    console.log(
+      '\n User5 starting stake balance & tier: ',
+      (await stakeContract.stakeOf(account5.address)).toString(),
+      await stakeContract.getTierOf(account5.address)
+    );
+
+    await stakeContract.connect(account2).removeStake(2000);
+    await stakeContract.connect(account3).removeStake(700);
+    await stakeContract.connect(account4).removeStake(200);
+    await stakeContract.connect(account5).removeStake(100);
+
+    console.log(
+      '\n User2 final stake balance & tier: ',
+      (await stakeContract.stakeOf(account2.address)).toString(),
+      await stakeContract.getTierOf(account2.address)
+    );
+    console.log(
+      '\n User3 final stake balance & tier: ',
+      (await stakeContract.stakeOf(account3.address)).toString(),
+      await stakeContract.getTierOf(account3.address)
+    );
+    console.log(
+      '\n User4 final stake balance & tier: ',
+      (await stakeContract.stakeOf(account4.address)).toString(),
+      await stakeContract.getTierOf(account4.address)
+    );
+    console.log(
+      '\n User5 final stake balance & tier: ',
+      (await stakeContract.stakeOf(account5.address)).toString(),
+      await stakeContract.getTierOf(account5.address)
     );
   });
 });
