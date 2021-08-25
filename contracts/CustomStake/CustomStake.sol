@@ -6,6 +6,8 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
+//Erase after use
+import "hardhat/console.sol";
 /**
 * @title Staking Contract
 * @author David Liendo
@@ -14,7 +16,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 contract CustomStake is Ownable {
 
-    using SafeMath for uint256;
+    using SafeMath for uint; 
     using SafeERC20 for IERC20;
     
     
@@ -24,8 +26,8 @@ contract CustomStake is Ownable {
     IERC20 public rewardsToken;
     // Registering stakeholders for security reasons
     address[] internal stakeHolders;
-    mapping(address => uint256) internal stakes;
-    mapping(address => uint256) internal rewards;
+    mapping(address => uint) internal stakes;
+    mapping(address => uint) internal rewards;
 
     // 0: Bronze,1: Silver,2: Gold,3: Platinum,
     enum StakeTier {
@@ -88,6 +90,15 @@ contract CustomStake is Ownable {
     function getTierOf(address _staker) public view returns(StakeTier){
         return stakesMap[_staker].tier;
     }
+        
+    /**
+    * @notice A method for getting the stake of a user
+    * @param _staker address of the required user
+    */
+
+    function getStakesOf(address _staker) public view returns(uint){
+        return stakesMap[_staker].stake;
+    }
 
     /**
     * @dev Update the rewards per token accumulator.
@@ -98,27 +109,40 @@ contract CustomStake is Ownable {
     * Silver reward of 10 RewardToken
     * Bronze reward of 5 RewardToken
     */
-    function _updateRewardsPerToken(StakeStruct storage _staker) internal {
+    function _updateRewardsPerToken(StakeStruct storage _staker, uint _stake) internal {
 
-        // Getting amount of periods
-        uint rewardPeriods = (block.timestamp -  _staker.startDate) / (10 minutes);
+        // Getting amount of periods that has passed since last update
+        uint rewardPeriods = (block.timestamp.sub( _staker.startDate)).div(10 minutes);
+
+        console.log('Amount of Reward Periods: %s', rewardPeriods);
 
         // Restarting period
         _staker.startDate = block.timestamp;
 
+        console.log('initial stake: %s', _staker.stake);
+
+        // Incrementing staked amount
+        _staker.stake.add(_stake);
+        
+        console.log('final stake: %s', _staker.stake);
+        //Setting the new tier according to the new stake
+        _staker.tier = setTier(_staker.stake);
+
         //Assigning new amount of reward
+        //using library for safe math operations
         if(_staker.tier == StakeTier.Platinum){
-            _staker.reward.accumulated = _staker.reward.accumulated + rewardPeriods * 100;
+            _staker.reward.accumulated = _staker.reward.accumulated.add( rewardPeriods.mul(100));
         } else if (_staker.tier == StakeTier.Gold){
-            _staker.reward.accumulated = _staker.reward.accumulated + rewardPeriods * 50;
+            _staker.reward.accumulated = _staker.reward.accumulated.add( rewardPeriods.mul(50));
 
         } else if (_staker.tier == StakeTier.Silver){
-            _staker.reward.accumulated = _staker.reward.accumulated + rewardPeriods * 10;
+            _staker.reward.accumulated = _staker.reward.accumulated.add( rewardPeriods.mul(10));
 
         } else if (_staker.tier == StakeTier.Bronze){
-            _staker.reward.accumulated = _staker.reward.accumulated + rewardPeriods * 5;
-
+            _staker.reward.accumulated = _staker.reward.accumulated.add( rewardPeriods.mul(5));
         }
+
+        console.log('Actual amount of rewards: %s', _staker.reward.accumulated);
     }
    /**
     * ================ Staking Mechanism ================
@@ -127,18 +151,16 @@ contract CustomStake is Ownable {
     /**
     * @notice A method to check if an address is a stakeholder.
     * @param _address The address to verify.
-    * @return bool, uint256 Whether the address is a stakeholder,
+    * @return bool, uint Whether the address is a stakeholder,
     * and if so its position in the stakeHolders array.
     */
    function isStakeholder(address _address)
        public
        view
-       returns(bool, uint256)
+       returns(bool)
    {
-       for (uint256 s = 0; s < stakeHolders.length; s += 1){
-           if (_address == stakeHolders[s]) return (true, s);
-       }
-       return (false, 0);
+       return stakesMap[_address].stake > 0 ? true : false;
+
    }
 
    /**
@@ -148,7 +170,7 @@ contract CustomStake is Ownable {
    function addStakeholder(address _stakeholder)
        public
    {
-       (bool _isStakeholder, ) = isStakeholder(_stakeholder);
+       (bool _isStakeholder) = isStakeholder(_stakeholder);
        if(!_isStakeholder) stakeHolders.push(_stakeholder);
    }
 
@@ -156,40 +178,40 @@ contract CustomStake is Ownable {
     * @notice A method to remove a stakeholder.
     * @param _stakeholder The stakeholder to remove.
     */
-   function removeStakeholder(address _stakeholder)
-       public
-   {
-       (bool _isStakeholder, uint256 s) = isStakeholder(_stakeholder);
-       if(_isStakeholder){
-           stakeHolders[s] = stakeHolders[stakeHolders.length - 1];
-           stakeHolders.pop();
-       }
-   }
+//    function removeStakeholder(address _stakeholder)
+//        public
+//    {
+//        (bool _isStakeholder) = isStakeholder(_stakeholder);
+//        if(_isStakeholder){
+//            stakeHolders[s] = stakeHolders[stakeHolders.length - 1];
+//            stakeHolders.pop();
+//        }
+//    }
 
     /**
     * @notice A method to retrieve the stake for a stakeholder.
     * @param _stakeHolder The stakeholder to retrieve the stake for.
-    * @return uint256 The amount of wei staked.
+    * @return uint The amount of wei staked.
     */
    function stakeOf(address _stakeHolder)
        public
        view
-       returns(uint256)
+       returns(uint)
    {
        return stakesMap[_stakeHolder].reward.accumulated;
    }
 
    /**   
     * @notice A method to the aggregated stakes from all stakeholders.
-    * @return uint256 The aggregated stakes from all stakeholders.
+    * @return uint The aggregated stakes from all stakeholders.
     */
    function totalStakes()
        public
        view
-       returns(uint256)
+       returns(uint)
    {
-       uint256 _totalStakes;
-       for (uint256 s = 0; s < stakeHolders.length; s += 1){
+       uint _totalStakes;
+       for (uint s = 0; s < stakeHolders.length; s += 1){
            _totalStakes = _totalStakes.add(stakesMap[stakeHolders[s]].reward.accumulated);
        }
        return _totalStakes;
@@ -199,22 +221,37 @@ contract CustomStake is Ownable {
     * @notice A method for a stakeholder to create a stake.
     * @param _stake The size of the stake to be created.
     */
-   function createStake(uint256 _stake)
+   function createStake(uint _stake)
        public
    {   
         require(_stake > 0, "You need to stake more than 0");
+
+        console.log('Initial stake inserted in function: %s', _stake);
+        console.log('Initial stake: %s', stakesMap[msg.sender].stake);
        /**
         * Register Stake holder
         */
-        addStakeholder(msg.sender);
-        stakesMap[msg.sender].startDate = block.timestamp;
-        stakesMap[msg.sender].stake.add(_stake);
-        stakesMap[msg.sender].stakerAddress = msg.sender;
-        stakesMap[msg.sender].tier = setTier(_stake);
+        if(stakesMap[msg.sender].stake == 0){
+
+            addStakeholder(msg.sender);
+            stakesMap[msg.sender].startDate = block.timestamp;
+            stakesMap[msg.sender].stake = _stake;
+            stakesMap[msg.sender].stakerAddress = msg.sender;
+            stakesMap[msg.sender].tier = setTier(_stake);
+
+        } 
+
+        /*
+        * Updating reward
+        */
+        else {
+            _updateRewardsPerToken(stakesMap[msg.sender], _stake);
+        }
+        console.log('final stake: %s', stakesMap[msg.sender].stake);
        /**
         * Transferring token
         */
-        stakingToken.transferFrom(msg.sender, address(this), _stake);
+        stakingToken.safeTransferFrom(msg.sender, address(this), _stake);
         emit Staked(msg.sender, _stake);
    }
 
@@ -222,16 +259,15 @@ contract CustomStake is Ownable {
     * @notice A method for a stakeholder to remove a stake.
     * @param _stake The size of the stake to be removed.
     */
-   function removeStake(uint256 _stake)
+   function removeStake(uint _stake)
        public
    {   
        require(_stake > 0, "You need to remove more than 0");
-       stakes[msg.sender] = stakes[msg.sender].sub(_stake);
-       if(stakes[msg.sender] == 0) removeStakeholder(msg.sender);
+
+        //Removing amount of stake token
+        stakesMap[msg.sender].stake = stakesMap[msg.sender].stake.sub(_stake);
        
-       /**
-        * Transferring token
-        */
+        // Transferring stake token back
         stakingToken.transfer(msg.sender, _stake);
    }
 
@@ -239,30 +275,31 @@ contract CustomStake is Ownable {
     * ================ Rewards Mechanism ================
     */
 
-      
    /**
     * @notice A method to allow a stakeholder to check his rewards.
-    * @param _stakeholder The stakeholder to check rewards for.
+    * @param _stakeHolder The stakeholder to check rewards for.
     */
-   function rewardOf(address _stakeholder)
+    //Should it be view?
+   function rewardOf(address _stakeHolder)
        public
-       view
-       returns(uint256)
-   {
-       return stakesMap[_stakeholder].reward.accumulated + stakesMap[_stakeholder].reward.checkpoint;
+       returns(uint)
+   {   
+       //Updates the accumulated reward
+       _updateRewardsPerToken(stakesMap[_stakeHolder], 0);
+       return stakesMap[_stakeHolder].reward.accumulated;
    }
 
    /**
     * @notice A method to the aggregated rewards from all stakeholders.
-    * @return uint256 The aggregated rewards from all stakeholders.
+    * @return uint The aggregated rewards from all stakeholders.
     */
    function totalRewards()
        public
        view
-       returns(uint256)
+       returns(uint)
    {
-       uint256 _totalRewards = 0;
-       for (uint256 s = 0; s < stakeHolders.length; s += 1){
+       uint _totalRewards = 0;
+       for (uint s = 0; s < stakeHolders.length; s += 1){
            _totalRewards = _totalRewards.add(rewards[stakeHolders[s]]);
        }
        return _totalRewards;
@@ -276,18 +313,16 @@ contract CustomStake is Ownable {
    function withdrawReward()
        public
    {   
-       require(rewards[msg.sender] > 0, "No reward created yet");
-       uint256 reward = rewards[msg.sender];
-       rewards[msg.sender] = 0;
-       rewardsToken.transfer(msg.sender, reward); 
+       require(stakesMap[msg.sender].stake > 0, "No stake created yet");
 
-       //remove stakeholder from the array
-       removeStakeholder(msg.sender);
-       emit Withdrawn(msg.sender, reward);
+       _updateRewardsPerToken(stakesMap[msg.sender], 0); 
+       rewardsToken.transfer(msg.sender, stakesMap[msg.sender].reward.accumulated); 
+       emit Withdrawn(msg.sender, stakesMap[msg.sender].reward.accumulated);
+        stakesMap[msg.sender].reward.accumulated = 0;
    } 
 
     /* ========== EVENTS ========== */
-    event Staked(address indexed user, uint256 amount);
-    event RewardDistributed(address indexed user, uint256 amount);  
-    event Withdrawn(address indexed user, uint256 amount);
+    event Staked(address indexed user, uint amount);
+    event RewardDistributed(address indexed user, uint amount);  
+    event Withdrawn(address indexed user, uint amount);
 }

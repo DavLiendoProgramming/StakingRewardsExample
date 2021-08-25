@@ -58,7 +58,7 @@ describe('Deploying ERC20 contracts and testing functionalities', () => {
     console.log('\nUser5 Account Address: ', account5.address);
   });
 
-  it('Returns the starting balance of the owner, test user and contract', async () => {
+  it('Returns the starting balance of the owner, test users and contract for staking', async () => {
     //Transferring token for staking to the user and giving rewards tokens for use inside the staking contract
     await stakeERC20.transfer(account2.address, 10000);
     await stakeERC20.transfer(account3.address, 10000);
@@ -131,7 +131,7 @@ describe('Deploying ERC20 contracts and testing functionalities', () => {
       userRewardsBal5
     );
     console.log(
-      "\nStaker contract's account starting balance",
+      "\nStaker contract's balance starting balance",
       '\nStake Balance:',
       stakerContractStakeBal,
       '\nRewards Balance:',
@@ -139,8 +139,12 @@ describe('Deploying ERC20 contracts and testing functionalities', () => {
     );
   });
 
-  it('Make a deposit for staking from the user to the staker contract', async () => {
+  it('Make a deposit for staking from the users to the staker contract', async () => {
     //Allowing contract to spend our token for staking
+    // safeApprove should only be called when setting an initial allowance,
+    // or when resetting it to zero. To increase and decrease it, use
+    // 'safeIncreaseAllowance' and 'safeDecreaseAllowance'
+
     await stakeERC20.connect(account2).approve(stakeContract.address, 1000);
     await stakeERC20.connect(account3).approve(stakeContract.address, 1000);
     await stakeERC20.connect(account4).approve(stakeContract.address, 1000);
@@ -229,60 +233,35 @@ describe('Deploying ERC20 contracts and testing functionalities', () => {
       stakerContractRewardsBal
     );
 
-    //Asserting the balance of the stake
+    //Asserting the balance of the staking contract
     assert(parseInt(stakerContractStakeBal) === 1699);
   });
 
-  // it('Collects the rewards of a particular user after certain amount of time', async () => {
-  //   const startingRewardsBal = (
-  //     await stakeContract.calculateReward(account2.address)
-  //   ).toString();
-  //   console.log(
-  //     '\nStarting rewards balance inside the contract:',
-  //     startingRewardsBal
-  //   );
+  it('Collects the rewards of a particular user after certain amount of time', async () => {
+    //Increasing current time for 1 hour into the future
+    await network.provider.send('evm_increaseTime', [3600]);
 
-  //   /**
-  //    * Distributing rewards to the staker (Callable only by the owner of the contract)
-  //    */
-  //   await stakeContract.distributeRewards();
+    //Withdrawoin rewards
+    await stakeContract.connect(account2).withdrawReward();
+    await stakeContract.connect(account3).withdrawReward();
+    await stakeContract.connect(account4).withdrawReward();
+    await stakeContract.connect(account5).withdrawReward();
 
-  //   //Allowing contract to spend our token for staking
-  //   // await rewardERC20.connect(account2).approve(stakeContract.address, 10000);
-  //   /**
-  //    * Withdrawing all the rewards available
-  //    */
-  //   await stakeContract.connect(account2).withdrawReward();
-
-  //   /**
-  //    * Getting Balances after withdrawing
-  //    */
-  //   const userStakeBal = (
-  //     await stakeERC20.balanceOf(account2.address)
-  //   ).toString();
-  //   const userRewardsBal = (
-  //     await rewardERC20.balanceOf(account2.address)
-  //   ).toString();
-  //   const stakerContractStakeBal = (
-  //     await stakeERC20.balanceOf(stakeContract.address)
-  //   ).toString();
-  //   const stakerContractRewardsBal = (
-  //     await rewardERC20.balanceOf(stakeContract.address)
-  //   ).toString();
-
-  //   console.log(
-  //     "\nUser's account balance just after withdrawing",
-  //     '\nStake Balance:',
-  //     userStakeBal,
-  //     '\nRewards Balance:',
-  //     userRewardsBal
-  //   );
-  //   console.log(
-  //     "\nStaker contract's account just after withdrawing",
-  //     '\nStake Balance:',
-  //     stakerContractStakeBal,
-  //     '\nRewards Balance:',
-  //     stakerContractRewardsBal
-  //   );
-  // });
+    console.log(
+      '\nBalance of reward token for account2 of tier platinum: ',
+      (await rewardERC20.balanceOf(account2.address)).toString()
+    );
+    console.log(
+      '\nBalance of reward token for account3 of tier gold: ',
+      (await rewardERC20.balanceOf(account3.address)).toString()
+    );
+    console.log(
+      '\nBalance of reward token for account4 of tier silver: ',
+      (await rewardERC20.balanceOf(account4.address)).toString()
+    );
+    console.log(
+      '\nBalance of reward token for account5 of tier bronze: ',
+      (await rewardERC20.balanceOf(account5.address)).toString()
+    );
+  });
 });
